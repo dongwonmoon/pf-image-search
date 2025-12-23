@@ -1,0 +1,35 @@
+name: Deploy to Oracle Cloud
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Copy files via SCP
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.KEY }}
+          # 로컬의 모든 파일을 서버의 pf-image-search 폴더로 복사
+          # 폴더 내용이 변경되면 서버에도 반영됨
+          source: "."
+          target: "/home/${{ secrets.USERNAME }}/pf-image-search"
+
+      - name: Restart Docker Compose via SSH
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.KEY }}
+          script: |
+            cd /home/${{ secrets.USERNAME }}/pf-image-search
+            # 이미지가 변경되었거나 설정이 바뀌면 재기동
+            docker compose up -d --build
+            docker image prune -f
