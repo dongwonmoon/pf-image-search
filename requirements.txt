@@ -1,0 +1,7 @@
+apache-airflow-providers-postgres
+requests
+numpy
+onnxruntime
+Pillow     
+torch      
+torchvision 
