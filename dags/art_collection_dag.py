@@ -211,4 +211,5 @@ with DAG(
         logging.info(f"Successfully updated embeddings for {success_count} images.")
 
     object_ids = search_artworks_from_api()
-    fetch_and_store_metadata(object_ids)
+    stored = fetch_and_store_metadata(object_ids)
+    stored >> generate_embeddings()

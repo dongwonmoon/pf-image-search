@@ -20,7 +20,8 @@ services:
 
   # 2. Airflow 초기화 (최초 1회 실행)
   airflow-init:
-    image: apache/airflow:2.7.1
+    build: .
+    # image: apache/airflow:2.7.1
     depends_on:
       postgres:
         condition: service_healthy
@@ -31,7 +32,8 @@ services:
 
   # 3. Airflow 웹서버
   airflow-webserver:
-    image: apache/airflow:2.7.1
+    build: .
+    # image: apache/airflow:2.7.1
     container_name: airflow-webserver
     restart: always
     depends_on:
@@ -51,7 +53,8 @@ services:
 
   # 4. Airflow 스케줄러
   airflow-scheduler:
-    image: apache/airflow:2.7.1
+    build: .
+    # image: apache/airflow:2.7.1
     container_name: airflow-scheduler
     restart: always
     depends_on:
