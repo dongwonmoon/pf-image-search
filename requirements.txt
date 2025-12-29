@@ -2,6 +2,5 @@ apache-airflow-providers-postgres
 requests
 numpy
 onnxruntime
+onnxscript
 Pillow     
-torch      
-torchvision 

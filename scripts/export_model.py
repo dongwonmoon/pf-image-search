@@ -26,7 +26,7 @@ torch.onnx.export(
     dummy_input,
     MODEL_PATH,
     export_params=True,  # 모델 가중치 저장
-    opset_version=12,  # ONNX 버전 (호환성 위함)
+    opset_version=18,  # ONNX 버전 (호환성 위함)
     do_constant_folding=True,  # 상수 폴딩 최적화
     input_names=["input"],  # 입력 노드 이름
     output_names=["output"],  # 출력 노드 이름
