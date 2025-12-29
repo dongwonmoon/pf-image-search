@@ -1,5 +1,6 @@
 import torch
 import torchvision.models as models
+import torch.nn as nn
 import os
 
 # 1. 저장할 경로 설정
@@ -12,6 +13,7 @@ if not os.path.exists(MODEL_DIR):
 print("Downloading Pre-trained MobileNetV3 Small model...")
 # 2. 사전 학습된 MobileNetV3 Small 모델 로드 (가중치 포함)
 model = models.mobilenet_v3_small(weights=models.MobileNet_V3_Small_Weights.DEFAULT)
+model.classifier = nn.Sequential(nn.Flatten())
 model.eval()  # 추론 모드로 변경
 
 # 3. 더미 입력 데이터 생성 (Batch Size 1, 3 Channels, 224x224 Height/Width)
