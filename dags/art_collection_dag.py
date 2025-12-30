@@ -125,6 +125,8 @@ with DAG(
                 logging.info(f"Metadata Progress: {i}/{len(object_ids)}")
 
             try:
+                time.sleep(0.1)
+
                 detail_url = f"https://collectionapi.metmuseum.org/public/collection/v1/objects/{obj_id}"
                 res = requests.get(detail_url, timeout=5)
 
