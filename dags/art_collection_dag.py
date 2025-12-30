@@ -8,6 +8,7 @@ import numpy as np
 import onnxruntime as ort
 from PIL import Image
 from io import BytesIO
+import time
 
 # --- 설정 변경 ---
 # 1. 다양한 카테고리의 명화를 수집하기 위한 키워드 리스트
@@ -116,23 +117,30 @@ with DAG(
         cursor = conn.cursor()
 
         success_count = 0
+        skip_no_image = 0
+        skip_api_error = 0
 
-        # 성능을 위해 이미 DB에 있는 ID는 건너뛰는 로직 추가 가능하지만,
-        # 지금은 ON CONFLICT DO NOTHING 믿고 진행
         for i, obj_id in enumerate(object_ids):
-            # 로그 너무 많이 남지 않게 100개마다 찍기
-            if i % 100 == 0:
-                logging.info(f"Fetching metadata progress: {i}/{len(object_ids)}")
+            if i % 50 == 0:
+                logging.info(f"Metadata Progress: {i}/{len(object_ids)}")
 
             try:
                 detail_url = f"https://collectionapi.metmuseum.org/public/collection/v1/objects/{obj_id}"
                 res = requests.get(detail_url, timeout=5)
+
+                # [DEBUG] API 오류 로그 추가
                 if res.status_code != 200:
+                    skip_api_error += 1
+                    # logging.warning(f"ID {obj_id}: API Status {res.status_code}") # 너무 많으면 주석
                     continue
 
                 art = res.json()
                 image_url = art.get("primaryImage")
+
+                # [DEBUG] 이미지 없음 로그 추가
                 if not image_url:
+                    skip_no_image += 1
+                    # logging.info(f"ID {obj_id}: No primaryImage found. Skipping.") # 확인용
                     continue
 
                 sql = """
@@ -144,7 +152,7 @@ with DAG(
                     sql,
                     (
                         art.get("objectID"),
-                        art.get("title", "Unknown")[:500],  # 제목 너무 길면 자름
+                        art.get("title", "Unknown")[:500],
                         art.get("artistDisplayName", "Unknown")[:500],
                         image_url,
                     ),
@@ -156,65 +164,80 @@ with DAG(
         conn.commit()
         cursor.close()
         conn.close()
-        logging.info(f"Metadata stored count: {success_count}")
+
+        # [최종 결과 리포트]
+        logging.info(f"=== Metadata Summary ===")
+        logging.info(f"Total Processed: {len(object_ids)}")
+        logging.info(f"Success Stored: {success_count}")
+        logging.info(f"Skipped (No Image): {skip_no_image}")
+        logging.info(f"Skipped (API Error): {skip_api_error}")
 
     @task
     def generate_embeddings():
-        """
-        DB에서 임베딩이 NULL인 항목들을 조회하여 벡터화 (배치 처리 느낌으로 전체 조회)
-        """
         pg_hook = PostgresHook(postgres_conn_id="postgres_default")
         conn = pg_hook.get_conn()
         cursor = conn.cursor()
 
-        # 처리되지 않은 모든 이미지 조회
-        cursor.execute("SELECT id, image_url FROM artworks WHERE embedding IS NULL;")
+        # 임베딩 없는 것 조회
+        cursor.execute(
+            "SELECT id, image_url FROM artworks WHERE embedding IS NULL LIMIT 20;"
+        )  # 디버깅을 위해 20개만 먼저
         rows = cursor.fetchall()
-        total_rows = len(rows)
 
         if not rows:
             logging.info("No embeddings to generate.")
             return
 
-        logging.info(f"Start generating embeddings for {total_rows} images...")
+        logging.info(f"Start debugging embeddings for {len(rows)} images...")
 
         model_path = "/opt/airflow/plugins/models/mobilenet_v3_small.onnx"
         session = ort.InferenceSession(model_path)
         input_name = session.get_inputs()[0].name
 
-        success_count = 0
-
-        for i, (row_id, image_url) in enumerate(rows):
-            if i % 50 == 0:
-                logging.info(f"Embedding progress: {i}/{total_rows}")
-                conn.commit()  # 중간중간 커밋해서 에러 나도 일부는 저장되게 함
-
+        for row_id, image_url in rows:
             try:
+                # [DEBUG] 시간 측정 시작
+                t_start = time.time()
+
+                # 1. 다운로드
                 res = requests.get(image_url, timeout=10)
+                t_download = time.time()
+
                 if res.status_code != 200:
                     continue
 
+                # 2. 전처리
                 input_tensor = preprocess_image(res.content)
                 if input_tensor is None:
                     continue
+                t_preprocess = time.time()
 
+                # 3. 추론 (Inference)
                 result = session.run(None, {input_name: input_tensor})
                 embedding_vector = result[0][0].tolist()
+                t_inference = time.time()
 
                 cursor.execute(
                     "UPDATE artworks SET embedding = %s WHERE id = %s;",
                     (embedding_vector, row_id),
                 )
-                success_count += 1
+
+                # [로그 출력] 각 단계별 소요 시간
+                download_time = t_download - t_start
+                preprocess_time = t_preprocess - t_download
+                inference_time = t_inference - t_preprocess
+
+                logging.info(
+                    f"ID {row_id}: Download={download_time:.2f}s, Preprocess={preprocess_time:.4f}s, Inference={inference_time:.4f}s"
+                )
 
             except Exception as e:
-                logging.error(f"Embedding error ID {row_id}: {e}")
+                logging.error(f"Error ID {row_id}: {e}")
                 continue
 
         conn.commit()
         cursor.close()
         conn.close()
-        logging.info(f"Finished. Successfully generated {success_count} embeddings.")
 
     # Flow
     ids = search_artworks_from_api()
