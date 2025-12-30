@@ -69,12 +69,22 @@ services:
       - ./plugins:/opt/airflow/plugins
     command: ["airflow", "scheduler"]
 
-  # 5. FastAPI (추후 빌드)
-  # app:
-  #   build: ./app
-  #   container_name: fastapi-app
-  #   ports:
-  #     - "8000:8000"
+  # 5. FastAPI
+  app: 
+    build: ./app
+    container_name: fastapi-app
+    ports:
+      - "8000:8000"
+    depends_on:
+      - postgres
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=admin
+      - DB_PASSWORD=password
+      - DB_NAME=im_search
+    volumes:
+      - ./plugins/models:/app/models
 
 volumes:
   postgres_data:
