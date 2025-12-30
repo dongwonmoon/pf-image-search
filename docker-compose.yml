@@ -86,5 +86,16 @@ services:
     volumes:
       - ./plugins/models:/app/models
 
+  # 6. Frontend
+  frontend:
+    build: ./frontend
+    container_name: streamlit-ui
+    ports:
+      - "8501:8501"
+    depends_on:
+      - app
+    environment:
+      - API_URL=http://app:8000
+
 volumes:
   postgres_data:
