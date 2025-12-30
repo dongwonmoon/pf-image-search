@@ -131,7 +131,9 @@ with DAG(
                 # [DEBUG] API 오류 로그 추가
                 if res.status_code != 200:
                     skip_api_error += 1
-                    # logging.warning(f"ID {obj_id}: API Status {res.status_code}") # 너무 많으면 주석
+                    logging.warning(
+                        f"ID {obj_id}: API Status {res.status_code}"
+                    )  # 너무 많으면 주석
                     continue
 
                 art = res.json()
