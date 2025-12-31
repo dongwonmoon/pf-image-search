@@ -120,6 +120,10 @@ with DAG(
         skip_no_image = 0
         skip_api_error = 0
 
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        }
+
         for i, obj_id in enumerate(object_ids):
             if i % 50 == 0:
                 logging.info(f"Metadata Progress: {i}/{len(object_ids)}")
@@ -128,7 +132,7 @@ with DAG(
                 time.sleep(0.1)
 
                 detail_url = f"https://collectionapi.metmuseum.org/public/collection/v1/objects/{obj_id}"
-                res = requests.get(detail_url, timeout=5)
+                res = requests.get(detail_url, headers=headers, timeout=5)
 
                 # [DEBUG] API 오류 로그 추가
                 if res.status_code != 200:
@@ -198,13 +202,17 @@ with DAG(
         session = ort.InferenceSession(model_path)
         input_name = session.get_inputs()[0].name
 
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        }
+
         for row_id, image_url in rows:
             try:
                 # [DEBUG] 시간 측정 시작
                 t_start = time.time()
 
                 # 1. 다운로드
-                res = requests.get(image_url, timeout=10)
+                res = requests.get(image_url, headers=headers, timeout=10)
                 t_download = time.time()
 
                 if res.status_code != 200:
