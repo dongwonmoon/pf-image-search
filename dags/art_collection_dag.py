@@ -13,17 +13,63 @@ import time
 # --- 설정 변경 ---
 # 1. 다양한 카테고리의 명화를 수집하기 위한 키워드 리스트
 SEARCH_TERMS = [
-    "Sunflowers",
+    # 유명 화가
+    "Vincent van Gogh",
+    "Claude Monet",
+    "Pablo Picasso",
+    "Rembrandt",
+    "Vermeer",
+    "Leonardo da Vinci",
+    "Michelangelo",
+    "Raphael",
+    "Salvador Dali",
+    "Matisse",
+    "Gustav Klimt",
+    "Andy Warhol",
+    "O'Keeffe",
+    "Hopper",
+    "Cezanne",
+    "Renoir",
+    # 사조 및 스타일
+    "Impressionism",
+    "Post-Impressionism",
+    "Cubism",
+    "Surrealism",
+    "Renaissance",
+    "Baroque",
+    "Ukiyo-e",
+    "Abstract Expressionism",
+    "Pop Art",
+    "Art Nouveau",
+    # 주제 (가장 데이터가 많음)
     "Portrait",
     "Landscape",
     "Still Life",
-    "Impressionism",
-    "Vincent van Gogh",
-    "Monet",
+    "Flowers",
+    "Animals",
+    "Birds",
+    "Ocean",
+    "Mountain",
+    "City",
+    "Music",
+    "Dance",
+    "War",
+    "Religion",
+    # 재료 및 형식
     "Oil Painting",
+    "Watercolor",
+    "Canvas",
+    "Sculpture",
+    "Ceramics",
+    "Bronze",
+    "Woodcut",
+    "Engraving",
+    "Photograph",
+    "Fashion",
+    "Furniture",
 ]
 # 2. 각 키워드당 수집할 최대 개수 (8개 키워드 * 500개 = 약 4,000장 목표)
-LIMIT_PER_TERM = 500
+LIMIT_PER_TERM = 1000
 
 # 전처리 표준값
 MEAN = np.array([0.485, 0.456, 0.406], dtype=np.float32)
