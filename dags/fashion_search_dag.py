@@ -9,10 +9,7 @@ import numpy as np
 import onnxruntime as ort
 from PIL import Image
 from io import BytesIO
-from dotenv import load_dotenv
 import os
-
-load_dotenv()
 
 PIXABAY_API_KEY = os.getenv("PIXABAY_API_KEY")
 

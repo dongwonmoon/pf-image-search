@@ -1,4 +1,25 @@
-version: '3.8'
+version: "3.8"
+
+x-airflow-env: &airflow-env
+  env_file:
+    - .env
+
+x-airflow-common: &airflow-common
+  build: .
+  depends_on:
+    postgres:
+      condition: service_healthy
+  <<: *airflow-env
+  environment:
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://admin:password@postgres/im_search
+    AIRFLOW__CORE__EXECUTOR: LocalExecutor
+    AIRFLOW__CORE__LOAD_EXAMPLES: "False"
+  volumes:
+    - ./dags:/opt/airflow/dags
+    - ./logs:/opt/airflow/logs
+    - ./plugins:/opt/airflow/plugins
+  restart: always
+
 services:
   # 1. 데이터베이스: pgvector가 포함된 PostgreSQL
   postgres:
@@ -20,69 +41,49 @@ services:
 
   # 2. Airflow 초기화 (최초 1회 실행)
   airflow-init:
-    build: .
-    # image: apache/airflow:2.7.1
-    depends_on:
-      postgres:
-        condition: service_healthy
-    environment:
-      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://admin:password@postgres/im_search
+    <<: *airflow-common
     entrypoint: /bin/bash
-    command: -lc "airflow db init && airflow users create --username admin --password admin --firstname Admin --lastname User --role Admin --email admin@example.com || true"
+    command: -lc >
+      airflow db init &&
+      airflow users create
+      --username admin
+      --password admin
+      --firstname Admin
+      --lastname User
+      --role Admin
+      --email admin@example.com
+      || true
+    restart: "no"
 
   # 3. Airflow 웹서버
   airflow-webserver:
-    build: .
-    # image: apache/airflow:2.7.1
+    <<: *airflow-common
     container_name: airflow-webserver
-    restart: always
-    depends_on:
-      postgres:
-        condition: service_healthy
-    environment:
-      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://admin:password@postgres/im_search
-      - AIRFLOW__CORE__EXECUTOR=LocalExecutor
-      - AIRFLOW__CORE__LOAD_EXAMPLES=False
     ports:
       - "8080:8080"
-    volumes:
-      - ./dags:/opt/airflow/dags
-      - ./logs:/opt/airflow/logs
-      - ./plugins:/opt/airflow/plugins
     command: ["airflow", "webserver"]
 
   # 4. Airflow 스케줄러
   airflow-scheduler:
-    build: .
-    # image: apache/airflow:2.7.1
+    <<: *airflow-common
     container_name: airflow-scheduler
-    restart: always
-    depends_on:
-      postgres:
-        condition: service_healthy
-    environment:
-      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://admin:password@postgres/im_search
-      - AIRFLOW__CORE__EXECUTOR=LocalExecutor
-    volumes:
-      - ./dags:/opt/airflow/dags
-      - ./logs:/opt/airflow/logs
-      - ./plugins:/opt/airflow/plugins
     command: ["airflow", "scheduler"]
 
   # 5. FastAPI
-  app: 
+  app:
     build: ./app
     container_name: fastapi-app
     ports:
       - "8000:8000"
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     environment:
-      - DB_HOST=postgres
-      - DB_PORT=5432
-      - DB_USER=admin
-      - DB_PASSWORD=password
-      - DB_NAME=im_search
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_USER: admin
+      DB_PASSWORD: password
+      DB_NAME: im_search
     volumes:
       - ./plugins/models:/app/models
 
@@ -95,7 +96,7 @@ services:
     depends_on:
       - app
     environment:
-      - API_URL=http://app:8000
+      API_URL: http://app:8000
 
 volumes:
   postgres_data:
