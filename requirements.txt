@@ -4,3 +4,4 @@ numpy
 onnxruntime
 onnxscript
 Pillow     
+python-dotenv
