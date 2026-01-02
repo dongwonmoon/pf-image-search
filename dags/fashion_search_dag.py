@@ -163,8 +163,10 @@ with DAG(
     @task
     def generate_embeddings():
         """
-        저장된 이미지 중 임베딩이 없는 것을 찾아 벡터화
+        저장된 이미지 중 임베딩이 없는 것을 찾아 벡터화 (성능 로깅 포함)
         """
+        import time  # 시간 측정을 위해 import 확인
+
         pg_hook = PostgresHook(postgres_conn_id="postgres_default")
         conn = pg_hook.get_conn()
         cursor = conn.cursor()
@@ -180,7 +182,7 @@ with DAG(
 
         logging.info(f"Start generating embeddings for {total_rows} images...")
 
-        # 헤더 추가 (Pixabay 이미지 서버 차단 방지용)
+        # Pixabay 차단 방지 헤더
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
         }
@@ -192,34 +194,58 @@ with DAG(
         success_count = 0
 
         for i, (row_id, image_url) in enumerate(rows):
-            if i % 50 == 0:
-                logging.info(f"Embedding progress: {i}/{total_rows}")
-                conn.commit()
-
             try:
-                # 타임아웃 넉넉하게
+                # [타이머 시작]
+                t_start = time.time()
+
+                # 1. 다운로드 (Network I/O)
                 res = requests.get(image_url, headers=headers, timeout=10)
+                t_download_end = time.time()
+
                 if res.status_code != 200:
                     continue
 
+                # 2. 전처리 (CPU Compute - Resize/Crop)
                 input_tensor = preprocess_image(res.content)
+                t_preprocess_end = time.time()
+
                 if input_tensor is None:
                     continue
 
+                # 3. 추론 (CPU Compute - ONNX Inference)
                 result = session.run(None, {input_name: input_tensor})
                 embedding_vector = result[0][0].tolist()
+                t_inference_end = time.time()
 
+                # DB 업데이트
                 cursor.execute(
                     "UPDATE artworks SET embedding = %s WHERE id = %s;",
                     (embedding_vector, row_id),
                 )
                 success_count += 1
 
+                # [시간 계산 및 로깅]
+                download_time = t_download_end - t_start
+                preprocess_time = t_preprocess_end - t_download_end
+                inference_time = t_inference_end - t_preprocess_end
+
+                # 소수점 4자리까지 출력하여 미세한 차이 확인
+                logging.info(
+                    f"ID {row_id} Perf: "
+                    f"Download={download_time:.4f}s, "
+                    f"Preprocess={preprocess_time:.4f}s, "
+                    f"Inference={inference_time:.4f}s"
+                )
+
             except Exception as e:
-                # 너무 많은 에러 로그 방지
                 if i % 100 == 0:
                     logging.error(f"Error ID {row_id}: {e}")
                 continue
+
+            # 50개마다 커밋
+            if i % 50 == 0:
+                conn.commit()
+                logging.info(f"Progress: {i}/{total_rows}")
 
         conn.commit()
         cursor.close()
