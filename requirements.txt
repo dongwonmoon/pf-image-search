@@ -5,3 +5,4 @@ onnxruntime
 onnxscript
 Pillow     
 python-dotenv
+aiohttp
