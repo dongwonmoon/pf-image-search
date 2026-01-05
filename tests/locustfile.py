@@ -1,6 +1,7 @@
 from locust import HttpUser, task, between
 import io
 import random
+import os
 
 
 # 가짜 이미지 생성 함수 (매번 파일을 읽지 않고 메모리에서 생성)
@@ -16,8 +17,12 @@ class ImageSearchUser(HttpUser):
     @task
     def search_image(self):
         # 1. 더미 이미지 준비
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        
+        image_path = os.path.join(current_dir, "sample.jpg")
+        
         try:
-            with open("sample.jpg", "rb") as image_file:
+            with open(image_path, "rb") as image_file:
                 files = {"file": image_file}
                 # FastAPI 컨테이너로 POST 요청 전송
                 self.client.post("/search", files=files)
