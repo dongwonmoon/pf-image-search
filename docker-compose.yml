@@ -136,5 +136,19 @@ services:
     depends_on:
       - prometheus
 
+  # 10. Locust: 부하 테스트
+  locust:
+    image: locustio/locust
+    container_name: locust
+    ports:
+      - "8089:8089" # 웹 UI 포트
+    volumes:
+      - ./tests:/mnt/locust
+    command: -f /mnt/locust/locustfile.py
+    environment:
+      - LOCUST_HOST=http://app:8000 # 공격 대상 (FastAPI 서비스명)
+    depends_on:
+      - app
+
 volumes:
   postgres_data:
