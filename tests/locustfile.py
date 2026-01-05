@@ -17,9 +17,9 @@ class ImageSearchUser(HttpUser):
     def search_image(self):
         # 1. 더미 이미지 준비
         try:
-            with open("tests/sample.jpg", "rb") as image_file:
+            with open("sample.jpg", "rb") as image_file:
                 files = {"file": image_file}
                 # FastAPI 컨테이너로 POST 요청 전송
                 self.client.post("/search", files=files)
         except FileNotFoundError:
-            print("Error: tests/sample.jpg not found!")
+            print("Error: sample.jpg not found!")
