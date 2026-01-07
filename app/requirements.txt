@@ -5,3 +5,4 @@ onnxruntime
 numpy
 Pillow
 psycopg2-binary
+gunicorn

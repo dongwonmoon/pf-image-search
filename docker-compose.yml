@@ -84,6 +84,7 @@ services:
       DB_USER: admin
       DB_PASSWORD: password
       DB_NAME: im_search
+      WEB_CONCURRENCY: 4
     volumes:
       - ./plugins/models:/app/models
 
