@@ -7,6 +7,9 @@ import io
 import psycopg2
 import os
 import logging
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
+
 
 # 로깅 설정
 logging.basicConfig(level=logging.INFO)
@@ -14,6 +17,9 @@ logger = logging.getLogger(__name__)
 
 # 전역 변수로 모델 세션 저장
 model_session = None
+
+# 전역 스레드 풀 생성
+executor = ThreadPoolExecutor(max_workers=4)
 
 # 환경 변수 (Docker Compose에서 주입 예정)
 DB_HOST = os.getenv("DB_HOST", "postgres")
@@ -64,14 +70,19 @@ async def lifespan(app: FastAPI):
     # 시작 시: 모델 로드
     global model_session
     try:
+        sess_options = ort.SessionOptions()
+        sess_options.intra_op_num_threads = 1
+        sess_options.inter_op_num_threads = 1
+
         logger.info(f"Loading model from {MODEL_PATH}...")
-        model_session = ort.InferenceSession(MODEL_PATH)
+        model_session = ort.InferenceSession(MODEL_PATH, sess_options=sess_options)
         logger.info("✅ Model loaded successfully.")
     except Exception as e:
         logger.error(f"❌ Failed to load model: {e}")
 
     yield
 
+    executor.shutdown()
     logger.info("Shutting down API server...")
 
 
@@ -94,9 +105,15 @@ async def search_image(file: UploadFile = File(...)):
     # 1. 이미지 읽기 및 전처리
     try:
         contents = await file.read()
-        input_tensor = preprocess_image(contents)
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Invalid image: {e}")
+
+    # 전처리 작업을 별도 스레드에서 실행
+    try:
+        loop = asyncio.get_running_loop()
+        input_tensor = await loop.run_in_executor(executor, preprocess_image, contents)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Preprocessing failed: {e}")
 
     # 2. 모델 추론 (Inference)
     try:

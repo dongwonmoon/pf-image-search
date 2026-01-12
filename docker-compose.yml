@@ -67,6 +67,11 @@ services:
   airflow-scheduler:
     <<: *airflow-common
     container_name: airflow-scheduler
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: '2G'
     command: ["airflow", "scheduler"]
 
   # 5. FastAPI
@@ -85,6 +90,11 @@ services:
       DB_PASSWORD: password
       DB_NAME: im_search
       WEB_CONCURRENCY: 4
+    deploy:
+      resources:
+        reservations:
+          cpus: '1.0'
+          memory: '1G'
     volumes:
       - ./plugins/models:/app/models
 
