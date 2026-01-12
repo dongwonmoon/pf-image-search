@@ -112,6 +112,8 @@ async def search_image(file: UploadFile = File(...)):
     # pgvector의 '<->' 연산자는 Euclidean Distance, '<=>'는 Cosine Distance
     # 보통 추천/검색에는 Cosine Distance('<=>')를 많이 씀. (0에 가까울수록 유사)
     results = []
+    conn = None
+    cursor = None
     try:
         conn = psycopg2.connect(
             host=DB_HOST, user=DB_USER, password=DB_PASS, dbname=DB_NAME
@@ -146,5 +148,11 @@ async def search_image(file: UploadFile = File(...)):
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Database error: {e}")
+
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
 
     return {"results": results}
